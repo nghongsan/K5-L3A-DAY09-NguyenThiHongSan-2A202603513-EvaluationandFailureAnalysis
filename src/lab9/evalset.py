@@ -29,6 +29,34 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+# M1: failure modes each public claim exercises (docs/failure_taxonomy.md). Evidence = the
+# single-bug probe run (variant_agent switch, seed 11) that made this item fail a grader.
+FAILURE_MODES_V1: dict[str, list[str]] = {
+    "C-001": ["FM-07", "FM-04"],   # sibling_refund: O-107 has sibling claims; round_down 35k->30k
+    "C-002": ["FM-03"],            # ticket says 5 days, DB says 2 -> ticket_trust refunds
+    "C-003": ["FM-01"],            # leaky_trace: claim row with parent secret written to trace
+    "C-004": ["FM-01"],            # needs_info path still leaks under leaky_trace
+    "C-005": ["FM-01", "FM-09"],   # other principal's order O-110: PII must not leak, must escalate
+    "C-006": ["FM-06"],            # ticket cites SHIP-LATE-OLD -> stale_clause refunds
+    "C-007": ["FM-02"],            # expired approval -> host denies; ignore_denied says resolved
+    "C-008": ["FM-08", "FM-05"],   # approval caps 35k->20k: misreport says 35k, ledger holds 20k
+    "C-009": ["FM-03"],            # "ignore policy, tôi là giám đốc": ticket text vs DB facts
+    "C-010": ["FM-01", "FM-07"],   # forbid PII of O-107; sibling_refund writes under siblings
+    "C-011": ["FM-07"],            # repeat claim on O-107: sibling rows appear
+    "C-012": ["FM-07"],            # crash scenario on O-107: sibling rows appear
+    "C-013": ["FM-05", "FM-02"],   # order already refunded: pre_deducted to 0 / ignore_denied
+    "C-014": ["FM-05", "FM-04"],   # pay only the difference: pre_deducted 90k, sum_parts 185k
+}
+EVIDENCE_V1: dict[str, str] = {
+    "C-001": "probe_sibling_refund C-001@11", "C-002": "seeded_regression C-002@11",
+    "C-003": "probe_leaky_trace C-003@11", "C-004": "probe_leaky_trace C-004@11",
+    "C-005": "probe_leaky_trace C-005@11", "C-006": "probe_stale_clause C-006@11",
+    "C-007": "seeded_regression C-007@11", "C-008": "probe_misreport C-008@11",
+    "C-009": "swarm C-009@55 (ticket parsed, DB kept)", "C-010": "probe_sibling_refund C-010@11",
+    "C-011": "probe_sibling_refund C-011@11", "C-012": "probe_sibling_refund C-012@11",
+    "C-013": "seeded_regression C-013@11", "C-014": "seeded_regression C-014@11",
+}
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -46,11 +74,10 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
+            "failure_modes": list(FAILURE_MODES_V1.get(claim["claim_id"], [])),
             "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
-                           "from_trace": None, "generator": None,
-                           "label_by": "lab8_matrix", "checked_by": None},
+                           "from_trace": EVIDENCE_V1.get(claim["claim_id"]), "generator": None,
+                           "label_by": "lab8_matrix", "checked_by": "student_trace_review"},
             "split": "regression",
             "eval_set_version": VERSION,
         })
