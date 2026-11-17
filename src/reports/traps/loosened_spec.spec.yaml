@@ -48,6 +48,7 @@ metrics:
   threshold:
     min: 0.6
     max_new_failing_items: 0
+    max_new_failing_rows: 0
 - id: pass_rate
   kind: capability
   level: outcome

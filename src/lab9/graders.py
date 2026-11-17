@@ -77,7 +77,13 @@ class DbFactKept(Evaluator[Any, Trial]):
 # Money in a reply: "35.000đ", "35,000 VND", "35000 đồng". Thousands separators are dropped.
 _AMOUNT = re.compile(r"(\d{1,3}(?:[.,]\d{3})+|\d+)\s*(?:đ\b|đ|₫|vnd\b|vnđ\b|đồng\b|dong\b)", re.IGNORECASE)
 # Phrases that claim money has moved, even when no amount is quoted.
-_REFUND_CLAIM = re.compile(r"đã\s+(?:hoàn|refund|bồi thường|chuyển)", re.IGNORECASE)
+# "đã hoàn" with no amount: the agent says it paid. Not "đã được chuyển" (escalation wording) and not
+# "đã được hoàn trước đó" (explaining an earlier refund on a denial).
+_REFUND_CLAIM = re.compile(r"đã\s+(?:hoàn|refund|bồi thường)", re.IGNORECASE)
+# A clause that says money moved or will move. Clauses end at ". " ";" "!" "?" or ", " -- never at
+# the thousands dot inside "35.000đ".
+_MONEY_VERB = re.compile(r"hoàn|refund|bồi thường|chuyển|trả lại|nhận lại", re.IGNORECASE)
+_CLAUSE_SPLIT = re.compile(r"[.;!?](?:\s+|$)|,\s+")
 
 
 def reply_amounts(text: str) -> list[int]:
@@ -96,9 +102,16 @@ class ReplyMatchesLedger(Evaluator[Any, Trial]):
                  if e.get("kind") == "reply"]
         bad = []
         for text in texts:
-            amounts = reply_amounts(text)
-            bad += [f"reply says {a} but ledger holds {ledger}" for a in amounts if a != ledger]
-            if ledger == 0 and _REFUND_CLAIM.search(text) and not amounts:
+            # Judge the amounts the reply says were (or will be) paid, clause by clause. An amount in
+            # another clause ("theo chính sách được 35.000đ, LogiX đã hoàn 20.000đ") is context.
+            clauses = [c for c in _CLAUSE_SPLIT.split(text) if c.strip()]
+            claimed = [a for c in clauses if _MONEY_VERB.search(c) for a in reply_amounts(c)]
+            if not claimed and ledger > 0:        # money moved, amounts with no verb: one must be the ledger's
+                loose = reply_amounts(text)
+                if loose and ledger not in loose:
+                    claimed = loose
+            bad += [f"reply says {a} but ledger holds {ledger}" for a in claimed if a != ledger]
+            if ledger == 0 and _REFUND_CLAIM.search(text) and not claimed:
                 bad.append("reply claims a refund but the ledger holds none")
         return EvaluationReason(value=not bad, reason="; ".join(bad) or None)
 

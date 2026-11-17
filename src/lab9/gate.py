@@ -64,6 +64,17 @@ def new_failing_items(pr: dict, base: dict, metric: str, slice_name: str | None 
     return sorted(k for k, v in b.items() if v == 1.0 and k in a and a[k] < 1.0)
 
 
+def new_failing_rows(pr: dict, base: dict, metric: str, slice_name: str | None = None) -> list[tuple]:
+    """(item, seed) rows the baseline got right that the PR gets wrong. Valid because the harness is
+    seeded and deterministic (A/A delta = 0): same seed + unchanged behaviour = same trace. A bug that
+    moves from one seed to another keeps every per-item mean equal; this does not."""
+    def ok(rep):
+        return {(r.get("item_id"), r.get("seed")): bool(r[metric]) for r in rep.get("rows") or []
+                if r.get(metric) is not None and (slice_name is None or slice_name in (r.get("slices") or []))}
+    a, b = ok(pr), ok(base)
+    return sorted(k for k, v in b.items() if v and a.get(k) is False)
+
+
 def _report_problems(rep: dict, who: str) -> list[str]:
     """Self-consistency of one report: manifest vs rows, duplicates, NaN, grader crashes."""
     out: list[str] = []
@@ -106,7 +117,7 @@ def _ratchet(spec: dict, base_spec: dict) -> list[str]:
         if old.get("blocking") and not new.get("blocking"):
             out.append(f"ratchet: {kind} {key} no longer blocking")
         ot, nt = old.get("threshold", old), new.get("threshold", new)
-        for b in ("max", "max_increase", "max_new_failing_items"):
+        for b in ("max", "max_increase", "max_new_failing_items", "max_new_failing_rows"):
             if b in ot and (b not in nt or nt[b] > ot[b]):
                 out.append(f"ratchet: {kind} {key} {b} {ot[b]} -> {nt.get(b, 'removed')}")
         if "min" in ot and ("min" not in nt or nt["min"] < ot["min"]):
@@ -224,10 +235,15 @@ def slice_check(pr: dict, base: dict, spec: dict) -> tuple[list[str], list[str]]
                 note += f" new-fail {len(new)}"
                 if len(new) > sl["max_new_failing_items"]:
                     verdict = "fail"
+            if "max_new_failing_rows" in sl:
+                rows = new_failing_rows(pr, base, metric, name)
+                note += f" new-fail-rows {len(rows)}"
+                if len(rows) > sl["max_new_failing_rows"]:
+                    verdict = "fail"
         if verdict != "ok" and sl.get("blocking"):
             blocked.append(sid)
         label = {"ok": "ok", "missing": "MISSING"}.get(verdict, "BLOCK" if sl.get("blocking") else "warn")
-        th = {k: sl[k] for k in ("min", "max", "no_significant_drop", "max_new_failing_items") if k in sl}
+        th = {k: sl[k] for k in ("min", "max", "no_significant_drop", "max_new_failing_items", "max_new_failing_rows") if k in sl}
         lines.append(f"  {sid:<34} {val!s:<8} {json.dumps(th):<40} {note:<34} {label}")
     return blocked, lines
 
@@ -264,6 +280,11 @@ def check(pr: dict, base: dict, spec: dict, base_spec: dict | None = None) -> tu
             new = new_failing_items(pr, base, mid)
             note += f" new-fail {len(new)}{' ' + ','.join(new[:4]) if new else ''}"
             if len(new) > th["max_new_failing_items"]:
+                verdict = "fail"
+        if "max_new_failing_rows" in th and val is not None:
+            rows = new_failing_rows(pr, base, mid)
+            note += f" new-fail-rows {len(rows)}"
+            if len(rows) > th["max_new_failing_rows"]:
                 verdict = "fail"
         if verdict != "ok" and m.get("blocking"):
             blocked.append(mid)

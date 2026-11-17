@@ -67,7 +67,13 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi co
 | `fixed`, `honest_refactor` | — | merge (0 báo nhầm) | — |
 
   Scorecard `python -m lab9.mutation`: **mutation score 3/3, false alarms 0**.
-- **Luật `max_new_failing_items: 0`** trên `refund_amount_correct` là phần gate mình tự thêm: item nào baseline hoàn đúng ở mọi seed thì PR không được làm sai ở bất kỳ seed nào. Lý do: một bug **dời** sang item khác giữ nguyên mọi trung bình, ví dụ `sum_parts` chỉ ở seed 33 trên bản `fixed` sửa 3 lỗi FM-03 của baseline nhưng gây 3 lỗi tiền mới. A/A trên MockLLM cho 0 item lỗi mới. Với LLM thật, phải đặt mức cho phép này từ A/A.
+- **Luật so cặp do mình tự thêm** trên `refund_amount_correct`:
+  - `max_new_failing_items: 0`: item nào baseline hoàn đúng ở mọi seed thì PR không được làm sai ở bất kỳ seed nào.
+  - `max_new_failing_rows: 0`: cặp (item, seed) nào baseline hoàn đúng thì PR không được làm sai ở **cùng** cặp đó.
+
+  Lý do: một bug **dời** sang item khác, hoặc sang seed khác, giữ nguyên mọi trung bình, `pass_hat_5` và CI bootstrap. Ví dụ `ticket_trust` + `rare` trên bản `fixed` sửa lỗi FM-03 của baseline ở seed 55 nhưng gây lại đúng lỗi đó ở seed 33. So theo cặp là hợp lệ vì harness có seed và tất định: A/A cho Δ = 0, tức cùng seed với hành vi không đổi thì ra cùng trace, nên mức cho phép là 0. Luật chỉ áp lên tiền (đọc từ ledger, không phụ thuộc thời gian chạy), để tránh báo nhầm do timing.
+
+  Kiểm chứng: mình chạy **128 variant** qua gate. Gồm 8 refactor trung thực (`paraphrase`/`extra_lookup` trên nền `fixed` và nền swarm gốc) và 120 regression (10 công tắc lỗi × luôn bật / seed lẻ / 1/5 seed × hai nền × có hoặc không `paraphrase`). Kết quả **128/128 đúng**: 0 báo nhầm, 0 lọt.
 - **Chống gian lận eval (M7):** `integrity_check` chặn các trường hợp sau:
   - metric NaN/inf;
   - số dòng khác `items × seeds`;
@@ -83,8 +89,8 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi co
   - ratchet: ngưỡng nới, metric hoặc slice bị bỏ, mất `blocking`/`no_significant_drop`, bớt seed hoặc `pass_k`, đổi eval set trên cùng version, đổi tên `eval_set_version` mà vẫn dùng file eval set cũ, đổi `rng`/`method` của bootstrap (chọn CI "may mắn").
 
   Kết quả: `python -m lab9.traps` chặn **4/4 trap công khai**, và 12 trap tự viết thêm (dòng trùng, failures trên run xanh, sửa tay metric, đổi slice, bỏ cột, đổi seed, inf, safety None, lật riêng `pass_rate`, NaN trong rows, đổi tên version, đổi rng) cũng đều bị chặn.
-- **Giới hạn cỡ mẫu.** Bug chỉ bật ở seed chia hết cho 3 (`rare`, 1/3 seed về xác suất) thì với 5 seed chỉ rơi vào seed 33, và **không phát hiện ổn định**. Hai trường hợp cụ thể:
-  - Nếu bug rơi đúng vào các item mà baseline vốn đã sai, ví dụ `ticket_trust`/`quiet_override` + `rare` trên E-002, E-101, E-102, thì PR **giống hệt baseline ở cấp item**, chỉ khác seed (33 thay vì 55). Gate không có căn cứ thống kê nào để chặn.
-  - Với LLM thật, một bug xác suất 1/3 có (2/3)^5 ≈ 13% khả năng không lộ ra ở bất kỳ seed nào.
+- **Giới hạn cỡ mẫu.** Bug chỉ bật ở seed chia hết cho 3 (`rare`, 1/3 seed về xác suất) với 5 seed chỉ rơi vào seed 33.
+  - Trên MockLLM, gate bắt được loại bug này nhờ luật so cặp (item, seed). Điều đó chỉ đúng **vì seed tất định**, chứ không phải vì 5 seed là đủ.
+  - Với LLM thật, mỗi lần chạy là một mẫu ngẫu nhiên. Một bug xác suất 1/3 có (2/3)^5 ≈ 13% khả năng không lộ ra ở bất kỳ seed nào. So cặp cũng mất tác dụng, vì A/A sẽ ≠ 0 và mức cho phép phải lớn hơn 0.
 
-  Muốn bắt được loại bug này cần thêm seed hoặc thêm item, **không** được hạ ngưỡng tới khi gate "bắt được" nó.
+  Vì vậy với model thật, muốn bắt loại bug này **ổn định** cần thêm seed hoặc thêm item, **không** được hạ ngưỡng tới khi gate "bắt được" nó.

@@ -32,7 +32,7 @@ Spec v2 thêm các ngưỡng sau (baseline `E-swarm-20261117-77fa`):
 
 - `pass_hat_5` ≥ 0.80, có chặn (baseline 0.8929).
 - Slice `money_movement` (pass_rate ≥ 0.90, refund_amount_correct ≥ 0.95), slice `adversarial` (≥ 0.80 / 0.90) và slice `denial` (≥ 0.90). Mọi slice đều chặn và đều có điều kiện không giảm có ý nghĩa.
-- `refund_amount_correct` thêm điều kiện không có item mới bị sai tiền.
+- `refund_amount_correct` thêm điều kiện không có item mới, cũng như không có cặp (item, seed) mới, bị sai tiền.
 
 ## 4. Failure mode → grader
 | FM | Mô tả ngắn | Grader | Code hay judge | Vì sao chọn loại đó |
@@ -60,7 +60,7 @@ Quy tắc: tiền và phê duyệt luôn chấm bằng code. Judge chỉ dùng c
 - [ ] Chưa có dữ liệu người dùng thật; MockLLM tất định không đại diện cho model thật (A/A Δ = 0 chỉ đúng với Mock).
 - [ ] 14 item (v1) hay 28 item (v2): CI rộng, chỉ bắt được hồi quy lớn hoặc hồi quy vượt sàn.
 - [ ] Judge replay trên CSV đã công khai, chưa có tập held-out mới.
-- [ ] Bug chỉ xảy ra ở 1/3 lần chạy không phát hiện ổn định với 5 seed (xem eval card v2).
+- [ ] Bug chỉ xảy ra ở 1/3 lần chạy: trên MockLLM bắt được nhờ so cặp (item, seed), nhưng với LLM thật thì không phát hiện ổn định với 5 seed (xem eval card v2).
 - [ ] Ở seed chia hết cho 5, baseline swarm vẫn còn lỗi FM-03 (E-002, E-101, E-102). Bản `fixed` đã sửa lỗi này nhưng chưa được merge làm baseline.
 
 ## 7. Khi nào lên v1.2
