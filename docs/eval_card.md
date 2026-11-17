@@ -5,12 +5,12 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi co
 ## v1 (Core)
 
 - **Run ID / eval set SHA:**
-  - baseline `E-swarm-20261117-561e`
-  - PR `E-fixed-20261117-561e`, `E-seeded_regression-20261117-561e`
-  - eval set `561ed6c3dcb5`
+  - baseline `E-swarm-20261117-6337`
+  - PR `E-fixed-20261117-6337`, `E-seeded_regression-20261117-6337`
+  - eval set `6337ef3bce51`
 - **Phiên bản:**
-  - code: nhánh `starter/d09`, các commit `db80099` (graders/stats) và `0d91f08` (gate)
-  - eval set v1 (`561ed6c3dcb5`), `metric_spec_version` 1.0, seeds 11/22/33/44/55
+  - code: nhánh `starter/d09` (commit cuối của PR)
+  - eval set v1 (`6337ef3bce51`), `metric_spec_version` 1.0, seeds 11/22/33/44/55
   - LLM: MockLLM; Python 3.14 trên máy local (CI dùng 3.13)
 - **Eval set:** v1, 14 item × 5 seed = 70 case, nguồn `lab8_public` (T01–T14). Nhãn nằm trong `labels_v1.json`, tách khỏi item. Mỗi item có `failure_modes` và `provenance.from_trace`.
 - **Metric & ngưỡng** (`config/metric_spec.yaml`):
@@ -52,7 +52,7 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi co
 
 ## v2 (Advanced / Expert)
 
-- **Run ID:** baseline `E-swarm-20261117-54dc`; eval set v2 `54dcd8d4d6ab`, gồm 28 item = 14 v1 + 14 adversarial; `metric_spec_version` 2.0.
+- **Run ID:** baseline `E-swarm-20261117-77fa`; eval set v2 `77fafa73e456`, gồm 28 item = 14 v1 + 14 adversarial; `metric_spec_version` 2.0.
 - **Ngưỡng chọn từ A/A.** Lệnh `python -m lab9.mutation --spec config/metric_spec_v2.yaml --aa 66,77,88,99,110` chạy cùng swarm trên seeds 11..55 và 66..110, cho **Δ = 0.0000 ở mọi metric** (pass_rate 0.9786, pass_hat_5 0.8929, pass_at_5 1.0). Với MockLLM, dải nhiễu A/A bằng 0, nên mọi sàn thấp hơn baseline đều nằm ngoài dải nhiễu. Sàn `pass_hat_5` = **0.80** (blocking) được chọn như sau:
   - Nằm dưới baseline 0.8929 một khoảng ~0.09, tức 2–3 item, để một refactor trung thực không bị chặn ngẫu nhiên.
   - Vẫn chặn `flaky_regression` (pass_hat_5 0.5714). Riêng `pass_rate` trung bình của variant này (0.9143) vẫn **trên** sàn 0.85.
@@ -78,9 +78,11 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi co
   - giá trị grader bị `None` hoặc mất cột;
   - slice tag bị đổi;
   - metric báo cáo khác số tính lại từ rows;
-  - ratchet: ngưỡng nới, metric hoặc slice bị bỏ, mất `blocking`/`no_significant_drop`, bớt seed, đổi eval set trên cùng version.
+  - giá trị grader không phải pass/fail (NaN trong rows);
+  - hàng PASS grader Lab 8 nhưng lại FAIL một kiểm tra mà grader Lab 8 bao hàm (`refund_amount_correct`, `approval_bypass`, `secret_leak`): dấu hiệu sửa tay cột `pass_rate`;
+  - ratchet: ngưỡng nới, metric hoặc slice bị bỏ, mất `blocking`/`no_significant_drop`, bớt seed hoặc `pass_k`, đổi eval set trên cùng version, đổi tên `eval_set_version` mà vẫn dùng file eval set cũ, đổi `rng`/`method` của bootstrap (chọn CI "may mắn").
 
-  Kết quả: `python -m lab9.traps` chặn **4/4 trap công khai**, và 8 trap tự viết thêm (dòng trùng, failures trên run xanh, sửa tay metric, đổi slice, bỏ cột, đổi seed, inf, safety None) cũng đều bị chặn.
+  Kết quả: `python -m lab9.traps` chặn **4/4 trap công khai**, và 12 trap tự viết thêm (dòng trùng, failures trên run xanh, sửa tay metric, đổi slice, bỏ cột, đổi seed, inf, safety None, lật riêng `pass_rate`, NaN trong rows, đổi tên version, đổi rng) cũng đều bị chặn.
 - **Giới hạn cỡ mẫu.** Bug chỉ bật ở seed chia hết cho 3 (`rare`, 1/3 seed về xác suất) thì với 5 seed chỉ rơi vào seed 33, và **không phát hiện ổn định**. Hai trường hợp cụ thể:
   - Nếu bug rơi đúng vào các item mà baseline vốn đã sai, ví dụ `ticket_trust`/`quiet_override` + `rare` trên E-002, E-101, E-102, thì PR **giống hệt baseline ở cấp item**, chỉ khác seed (33 thay vì 55). Gate không có căn cứ thống kê nào để chặn.
   - Với LLM thật, một bug xác suất 1/3 có (2/3)^5 ≈ 13% khả năng không lộ ra ở bất kỳ seed nào.

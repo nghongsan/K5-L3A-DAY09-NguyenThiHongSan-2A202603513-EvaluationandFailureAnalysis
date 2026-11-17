@@ -52,7 +52,7 @@ EVIDENCE_V1: dict[str, str] = {
     "C-003": "probe_leaky_trace C-003@11", "C-004": "probe_leaky_trace C-004@11",
     "C-005": "probe_leaky_trace C-005@11", "C-006": "probe_stale_clause C-006@11",
     "C-007": "seeded_regression C-007@11", "C-008": "probe_misreport C-008@11",
-    "C-009": "swarm C-009@55 (ticket parsed, DB kept)", "C-010": "probe_sibling_refund C-010@11",
+    "C-009": None,   # no single-bug probe fails C-009; FM-03 evidence is C-002 and v2 C-101/C-102 "C-010": "probe_sibling_refund C-010@11",
     "C-011": "probe_sibling_refund C-011@11", "C-012": "probe_sibling_refund C-012@11",
     "C-013": "seeded_regression C-013@11", "C-014": "seeded_regression C-014@11",
 }

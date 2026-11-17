@@ -57,7 +57,9 @@ def rogan_gladen(observed_rate: float, sensitivity: float, specificity: float) -
     """Correct an observed failure rate for judge error; clip to [0, 1]."""
     denom = sensitivity + specificity - 1
     if denom <= 0:
-        raise ValueError("Rogan-Gladen undefined: sensitivity + specificity <= 1 (judge no better than chance)")
+        # Judge no better than chance: the correction is undefined. NaN (not a crash) so that
+        # `lab9.judge` still prints the calibration and FAILs the floors.
+        return float("nan")
     return min(1.0, max(0.0, (observed_rate + specificity - 1) / denom))
 
 
@@ -84,18 +86,24 @@ def paired_bootstrap(a: Sequence[float], b: Sequence[float], *, n_resamples: int
     return d, float(res.confidence_interval.low), float(res.confidence_interval.high)
 
 
-def _check_k(n: int, c: int, k: int) -> None:
-    if not all(isinstance(v, int) and not isinstance(v, bool) for v in (n, c, k)):
-        raise ValueError("n, c, k must be integers")
+def _check_k(n: int, c: int, k: int) -> tuple[int, int, int]:
+    import operator
+    try:
+        if any(isinstance(v, bool) for v in (n, c, k)):
+            raise TypeError
+        n, c, k = operator.index(n), operator.index(c), operator.index(k)   # accepts numpy ints, rejects 2.5
+    except TypeError:
+        raise ValueError(f"n, c, k must be integers, got {(n, c, k)!r}") from None
     if n < 1 or k < 1 or k > n or c < 0 or c > n:
         raise ValueError(f"invalid (n={n}, c={c}, k={k}): need 1 <= k <= n and 0 <= c <= n")
+    return n, c, k
 
 
 def pass_at_k(n: int, c: int, k: int) -> float:
     """Probability that AT LEAST ONE of k trials drawn from n (c of them passing) passes.
     Unbiased estimator (Chen et al. 2021): 1 - C(n-c, k) / C(n, k). Raise ValueError if k > n."""
     from math import comb
-    _check_k(n, c, k)
+    n, c, k = _check_k(n, c, k)
     return 1.0 - comb(n - c, k) / comb(n, k)
 
 
@@ -104,5 +112,5 @@ def pass_hat_k(n: int, c: int, k: int) -> float:
     Unbiased estimator: C(c, k) / C(n, k). Raise ValueError if k > n.
     pass^k <= pass@1 <= pass@k; a reliable agent keeps pass^k close to pass@1."""
     from math import comb
-    _check_k(n, c, k)
+    n, c, k = _check_k(n, c, k)
     return comb(c, k) / comb(n, k)

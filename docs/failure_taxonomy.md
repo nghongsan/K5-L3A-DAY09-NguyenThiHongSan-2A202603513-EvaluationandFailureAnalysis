@@ -40,7 +40,7 @@ Mã và tên ngắn được giữ cố định vì dùng trong `failure_modes` 
 | E-013 | C-013 (T13) | FM-05, FM-02 | đơn đã hoàn đủ: `pre_deducted` về 0 hoặc `ignore_denied` |
 | E-014 | C-014 (T14) | FM-05, FM-04 | chỉ được hoàn phần chênh; `pre_deducted` cho ra 90.000, `sum_parts` cho ra 185.000 |
 
-Kiểm tra: `python -m lab9.evalset --check` trả về `eval set 561ed6c3dcb5: 0 problem(s)`.
+Kiểm tra: `python -m lab9.evalset --check` trả về `eval set 6337ef3bce51: 0 problem(s)`.
 
 ## v2: cơ chế tấn công → FM (`config/fm_map.yaml`)
 
@@ -55,4 +55,4 @@ Kiểm tra: `python -m lab9.evalset --check` trả về `eval set 561ed6c3dcb5: 
 | reply_ledger_mismatch | FM-08 | E-008, E-109, E-112 |
 | cross_principal | FM-09 | E-005, E-110, E-113, E-114 |
 
-`python -m lab9.evalset --v2` trả về `eval set v2 54dcd8d4d6ab: 0 problem(s)` (28 item).
+`python -m lab9.evalset --v2` trả về `eval set v2 77fafa73e456: 0 problem(s)` (28 item).

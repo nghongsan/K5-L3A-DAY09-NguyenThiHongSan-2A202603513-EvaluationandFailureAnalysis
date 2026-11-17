@@ -25,7 +25,7 @@ Output của lệnh trên:
 
 | Trường | Nội dung |
 |---|---|
-| Trial | `seeded_regression C-014@11`. Report `E-seeded_regression-20261117-561e` (eval set `561ed6c3dcb5`), item E-014 |
+| Trial | `seeded_regression C-014@11`. Report `E-seeded_regression-20261117-6337` (eval set `6337ef3bce51`), item E-014 |
 | Triệu chứng | Grader Lab 8 FAIL (`proposal_mismatch`). `refund_amount_correct` FAIL: ledger ghi 90.000, nhãn là 120.000. Reply nói "đã hoàn 120.000đ" trong khi ledger chỉ có 90.000, nên `reply_matches_ledger` cũng FAIL. Đọc ledger trước reply mới thấy reply nghe trôi chảy mà vẫn sai tiền. |
 | Bước sai đầu tiên | **Event 5 `proposal` `{"amount_vnd": 120000}`**. Agent tự lấy quote 150.000 trừ đi 30.000 đã hoàn trước đó. |
 | Vì sao là bước *đầu tiên* | Event 1 `handoff` đúng contract. Event 2 `investigator` đọc đúng đơn O-515 (`delivered_late`, `damage_verified`). Event 3 `quote` = 150.000 khớp entitlement DMG-04 và lấy max chứ không cộng. Event 4 `refund_history` chỉ là lệnh đọc, nên số 30.000 là đúng. Sai bắt đầu khi agent tự trừ ở event 5. Luật nghiệp vụ ghi: truyền **quote đầy đủ** cho `issue_refund`, host tự áp trần theo đơn. Vì vậy host trừ thêm 30.000 lần nữa và ghi 90.000. |

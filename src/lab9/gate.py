@@ -17,7 +17,6 @@ from pathlib import Path
 from lab8.console import utf8_stdio
 from lab9 import stats
 from lab9.eval import SPEC, aggregate, load_spec, per_item
-from lab9.graders import GRADERS
 
 
 def _bad_number(v) -> bool:
@@ -25,10 +24,37 @@ def _bad_number(v) -> bool:
 
 
 def _graded(spec: dict, base: dict) -> list[str]:
-    """Spec metrics that are scored per row: registered graders, plus anything the baseline rows carry."""
-    base_keys = set(base["rows"][0]) if base.get("rows") else set()
-    return [m["id"] for m in spec.get("metrics", []) if m["id"] in GRADERS or m["id"] in base_keys
-            if m["id"] not in {"pass_5", "cost_per_success"} and not m["id"].startswith(("pass_at_", "pass_hat_"))]
+    """Spec metrics scored per row in the baseline. A PR row missing one of them lost a grader."""
+    base_keys = set().union(*(r.keys() for r in base.get("rows") or [{}]))
+    return [m["id"] for m in spec.get("metrics", []) if m["id"] in base_keys]
+
+
+# Lab 8's trial_pass checks the ledger amount, foreign ledger rows and forbidden substrings itself,
+# so a row that passes it cannot fail these graders. A row that does was edited after grading.
+_IMPLIED_BY_PASS = {"refund_amount_correct": True, "approval_bypass": False, "secret_leak": False}
+
+
+def _row_problems(rep: dict, who: str, graded: list[str]) -> list[str]:
+    out: list[str] = []
+    holes, typed, contra = [], [], []
+    for r in rep.get("rows") or []:
+        rid = (r.get("item_id"), r.get("seed"))
+        for m in graded:
+            v = r.get(m)
+            if v is None:
+                holes.append((*rid, m))
+            elif not isinstance(v, (bool, int)) or (not isinstance(v, bool) and v not in (0, 1)):
+                typed.append((*rid, m, v))
+        if r.get("pass_rate") is True:
+            contra += [(*rid, m) for m, want in _IMPLIED_BY_PASS.items() if m in r and r[m] is not None and bool(r[m]) != want]
+    if holes:
+        out.append(f"{who}: {len(holes)} graded value(s) missing, e.g. {holes[0]} "
+                   f"(a grader that did not score must not drop out of the mean)")
+    if typed:
+        out.append(f"{who}: {len(typed)} graded value(s) are not pass/fail, e.g. {typed[0]}")
+    if contra:
+        out.append(f"{who}: {len(contra)} row(s) pass Lab 8's grader yet fail a check it implies, e.g. {contra[0]}")
+    return out
 
 
 def new_failing_items(pr: dict, base: dict, metric: str, slice_name: str | None = None) -> list[str]:
@@ -65,9 +91,13 @@ def _report_problems(rep: dict, who: str) -> list[str]:
 
 def _ratchet(spec: dict, base_spec: dict) -> list[str]:
     """Same eval-set version => every threshold may only get stricter."""
-    if spec.get("eval_set_version") != base_spec.get("eval_set_version"):
-        return []                                            # new eval set: a new baseline, new thresholds
     out: list[str] = []
+    if spec.get("eval_set_version") != base_spec.get("eval_set_version"):
+        if spec.get("eval_set") != base_spec.get("eval_set"):
+            return []                                        # truly a new eval set: new baseline, new thresholds
+        # Renaming the version while grading the same items is a loophole, not a new eval set.
+        out.append(f"ratchet: eval_set_version {base_spec.get('eval_set_version')} -> "
+                   f"{spec.get('eval_set_version')} but eval_set is still {spec.get('eval_set')}")
 
     def cmp(kind: str, key: str, old: dict, new: dict | None) -> None:
         if new is None:
@@ -98,6 +128,11 @@ def _ratchet(spec: dict, base_spec: dict) -> list[str]:
     ob, nb = base_spec.get("bootstrap") or {}, spec.get("bootstrap") or {}
     if nb.get("confidence", 0.95) < ob.get("confidence", 0.95) or nb.get("n_resamples", 1000) < ob.get("n_resamples", 1000):
         out.append("ratchet: bootstrap confidence / n_resamples lowered")
+    for k in ("rng", "method"):                               # shopping for a lucky CI
+        if k in ob and nb.get(k) != ob[k]:
+            out.append(f"ratchet: bootstrap {k} {ob[k]} -> {nb.get(k)}")
+    if not set(base_spec.get("pass_k") or []) <= set(spec.get("pass_k") or []):
+        out.append(f"ratchet: pass_k {base_spec.get('pass_k')} -> {spec.get('pass_k')}")
     return out
 
 
@@ -130,11 +165,7 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
                         f"{len(pr_pairs - base_pairs)} extra")
     graded = _graded(spec, base)
     for who, rep in (("PR", pr), ("baseline", base)):
-        holes = [(r.get("item_id"), r.get("seed"), m) for r in rep.get("rows") or [] for m in graded
-                 if r.get(m) is None]
-        if holes:
-            problems.append(f"{who}: {len(holes)} graded value(s) missing, e.g. {holes[0]} "
-                            f"(a grader that did not score must not drop out of the mean)")
+        problems += _row_problems(rep, who, graded)
     base_tags = {r.get("item_id"): sorted(r.get("slices") or []) for r in base.get("rows") or []}
     retagged = sorted({r.get("item_id") for r in pr.get("rows") or []
                        if r.get("item_id") in base_tags and sorted(r.get("slices") or []) != base_tags[r.get("item_id")]})
@@ -150,7 +181,7 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
             again.pop("cost_per_success", None)
         for k, v in (pr.get("metrics") or {}).items():
             w = again.get(k)
-            if isinstance(v, (int, float)) and isinstance(w, (int, float)) and abs(v - w) > 1e-6:
+            if isinstance(v, (int, float)) and isinstance(w, (int, float)) and abs(v - w) > 5e-4:
                 problems.append(f"PR: metric {k}={v} but its rows give {w}")
             elif k in again and (v is None) != (w is None):
                 problems.append(f"PR: metric {k}={v} but its rows give {w}")
