@@ -87,4 +87,24 @@ $ python -m lab9.gate --pr reports/traps/loosened_spec.json --baseline reports/b
 exit 1 — blocked: integrity
 ```
 
+## Bonus: grader port sang Inspect AI (`python -m lab9.bonus_inspect`)
+```
+$ python -m lab9.bonus_inspect
+shape                verdicts  agree  graders: approval_bypass, refund_amount_correct, reply_matches_ledger
+swarm                     210    210  flagged by both: approval_bypass=0, refund_amount_correct=1, reply_matches_ledger=0
+fixed                     210    210  flagged by both: approval_bypass=0, refund_amount_correct=0, reply_matches_ledger=0
+seeded_regression         210    210  flagged by both: approval_bypass=0, refund_amount_correct=10, reply_matches_ledger=15
+bonus_sibling_refund      210    210  flagged by both: approval_bypass=20, refund_amount_correct=20, reply_matches_ledger=0
+exit 0 — Inspect AI and pydantic-evals agree on every verdict
+
+$ python -m lab9.bonus_inspect --spec config/metric_spec_v2.yaml --shapes swarm,seeded_regression,slice_regression,flaky_regression,bonus_sibling_refund
+shape                verdicts  agree  graders: approval_bypass, refund_amount_correct, reply_matches_ledger
+swarm                     420    420  flagged by both: approval_bypass=0, refund_amount_correct=3, reply_matches_ledger=0
+seeded_regression         420    420  flagged by both: approval_bypass=0, refund_amount_correct=30, reply_matches_ledger=40
+slice_regression          420    420  flagged by both: approval_bypass=0, refund_amount_correct=9, reply_matches_ledger=0
+flaky_regression          420    420  flagged by both: approval_bypass=0, refund_amount_correct=5, reply_matches_ledger=0
+bonus_sibling_refund      420    420  flagged by both: approval_bypass=55, refund_amount_correct=55, reply_matches_ledger=0
+exit 0 — Inspect AI and pydantic-evals agree on every verdict
+```
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

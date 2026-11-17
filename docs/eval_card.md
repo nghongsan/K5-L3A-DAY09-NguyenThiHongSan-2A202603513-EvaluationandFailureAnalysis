@@ -94,3 +94,19 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10. Mọi co
   - Với LLM thật, mỗi lần chạy là một mẫu ngẫu nhiên. Một bug xác suất 1/3 có (2/3)^5 ≈ 13% khả năng không lộ ra ở bất kỳ seed nào. So cặp cũng mất tác dụng, vì A/A sẽ ≠ 0 và mức cho phép phải lớn hơn 0.
 
   Vì vậy với model thật, muốn bắt loại bug này **ổn định** cần thêm seed hoặc thêm item, **không** được hạ ngưỡng tới khi gate "bắt được" nó.
+
+## Bonus: port grader sang Inspect AI
+
+- **Module và cách chạy:** `src/lab9/bonus_inspect.py`. Cài `pip install -r requirements-bonus.txt` (inspect-ai 0.3.290; CI không cần) rồi chạy `python -m lab9.bonus_inspect`.
+- **Cách port:** 3 grader `approval_bypass`, `refund_amount_correct`, `reply_matches_ledger` được **viết lại** thành scorer gốc của Inspect, không gọi lại `lab9.graders`.
+  - Dataset: cùng ma trận item × seed như harness chính.
+  - Solver: chạy cùng shape qua `lab9.eval.make_task`, nên agent và ledger giống hệt.
+  - Model: `mockllm/model` có sẵn trong Inspect, không cần key.
+- **Kết quả:** khớp **100%** với pydantic-evals.
+  - v1: 4 shape × 70 hàng × 3 grader = 840 phán quyết.
+  - v2: 5 shape × 140 hàng × 3 grader = 2.100 phán quyết.
+  - Mỗi grader đều thực sự bật trên cả hai framework, nên sự trùng khớp không phải chuyện hiển nhiên. Ví dụ trên v2: `approval_bypass` bật 55 hàng (probe `bonus_sibling_refund`), `refund_amount_correct` bật 30 hàng (`seeded_regression`), `reply_matches_ledger` bật 40 hàng.
+- **Khác biệt khi dùng thực tế:**
+  - Inspect ghi log từng sample (input, output, giải thích điểm), dễ audit hơn report JSON của mình.
+  - Pydantic-evals nhẹ hơn và chạy được trong CI không cần thêm dependency.
+  - Gate vẫn dùng pydantic-evals; Inspect dùng để kiểm chéo.
