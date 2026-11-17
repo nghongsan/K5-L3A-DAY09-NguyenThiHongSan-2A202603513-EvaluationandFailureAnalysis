@@ -1,0 +1,23 @@
+{
+  "base_commit": "ceca05b3681429f7c7fa7843db215610c63019c7",
+  "state": "integrated main code snapshot; 442 tests passed; public benchmark/crash rerun after merge",
+  "python": "3.12.2",
+  "sha256": {
+    "src/lab8/shapes/workflow.py": "4a1df0adc028301563a1865baa574b941ef086f4667448770edc7960b33b6e03",
+    "src/lab8/shapes/single.py": "f81124b8d684b3e7eaa38907d45cd25f5040368d4afaeaeba31b45811fd6a35b",
+    "src/lab8/shapes/orchestrator.py": "774ab2e84b07861bc3a2fdc6a12eae68669f4af31b427b1600cf6e2086765d9c",
+    "src/lab8/shapes/swarm_reference.py": "6b036828c2b37f38a101aacff1b458bf4c4cffae4817936d19f0a36f45532551",
+    "src/lab8/demo/web.py": "a0e26d0c3700984fedf709680ab2f35bc1a6360d8e7981b2319d6a4fecc2102a",
+    "src/lab8/demo/ui/index.html": "fb7ebd19f07454c0b09dfd1610fc2eddf7a578267e7038f602967c2bfec2c932",
+    "src/lab8/demo/ui/style.css": "6d40a973da30adf060d580087cf1b79a4ad21e8d0aaf09bd9983de52f0249c58",
+    "src/lab8/demo/ui/app.js": "9f1b0e5a1887faa5da7e2b33dad885c920fdd1e3154752998dbc2cf9259ea6f9",
+    "src/tests/test_demo_web.py": "6a141692d72fad9967990d18b540464fdbdacbaf8d02f53c5659f4556ec0cc8f",
+    "src/reports/benchmark.json": "b8621270434f7e28bebc2015f42c2df24dc71dd4d5d44ccb835a5d014cc8fca0",
+    "src/reports/crash.json": "20a61898de6b4570202221f752e05b130a83f56ed3830452e4d4de120c3f9f57"
+  },
+  "commands": [
+    "python3 -m pytest -q -o addopts=",
+    "python3 -m lab8.benchmark --shapes workflow,single,orchestrator,swarm --cases data/public_claims.jsonl --seeds 11,22,33,44,55 --out reports/benchmark.json",
+    "python3 -m lab8.crash_test --count 20 --out reports/crash.json"
+  ]
+}
